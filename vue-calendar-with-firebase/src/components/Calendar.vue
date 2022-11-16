@@ -49,6 +49,8 @@
           :events="events"
           :event-color="getEventColor"
           :type="type"
+          @contextmenu:date="contextMenuDate"
+          @contextmenu:time="contextMenuTime"
           @click:event="showEvent"
           @click:more="viewDay"
           @click:date="viewDay"
@@ -118,13 +120,19 @@ export default {
   mounted() {
     this.getEvents();
   },
+  computed: {},
   methods: {
+    contextMenuDate(e) {
+      console.log(e);
+    },
+    contextMenuTime(e) {
+      console.log(e);
+    },
     async getEvents() {
       let snapshot = await db.collection("calEvent").get();
       let currEvents = [];
 
       snapshot.forEach((doc) => {
-        console.log(doc.data());
         let appData = doc.data();
         appData.id = doc.id;
         currEvents.push(appData);
@@ -149,6 +157,7 @@ export default {
       this.$refs.calendar.next();
     },
     showEvent({ nativeEvent, event }) {
+      console.log("in showEvent", event);
       const open = () => {
         this.selectedEvent = event;
         this.selectedElement = nativeEvent.target;
