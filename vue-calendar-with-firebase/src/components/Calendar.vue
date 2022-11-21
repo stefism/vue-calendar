@@ -65,13 +65,13 @@
                 </v-text-field>
                 <v-text-field
                   v-model="start"
-                  type="datetime-local"
+                  :type="timed ? 'datetime-local' : 'date'"
                   label="start (required)"
                 >
                 </v-text-field>
                 <v-text-field
                   v-model="end"
-                  type="datetime-local"
+                  :type="timed ? 'datetime-local' : 'date'"
                   label="end (required)"
                 >
                 </v-text-field>
@@ -95,14 +95,11 @@
                 >
               </v-form>
             </v-container>
-            <v-alert
+            <Alert
+              :message="errorMessage"
               :value="isErrors"
-              border="bottom"
               color="pink darken-1"
-              dark
-            >
-              Please fill all required fields
-            </v-alert>
+            />
           </v-card>
         </v-dialog>
 
@@ -121,6 +118,17 @@
             @click:date="viewDay"
             @change="updateRange"
           ></v-calendar>
+          <EventMenu
+            v-if="isMenuOpen"
+            :titleText="menuText"
+            @onEventMenuClose="onEventMenuClose()"
+            :style="{
+              position: 'absolute',
+              top: `${menuXposition}px`,
+              left: `${menuYposition}px`,
+              'z-index': 2,
+            }"
+          />
           <v-menu
             v-model="selectedOpen"
             :close-on-content-click="false"
@@ -181,7 +189,10 @@
 
 <script>
 import { db } from "@/main";
+import Alert from "./Alert.vue";
+import EventMenu from "./EventMenu.vue";
 export default {
+  components: { Alert, EventMenu },
   data() {
     return {
       today: new Date().toISOString().substring(0, 10),
@@ -206,6 +217,11 @@ export default {
       events: [],
       dialog: false,
       isErrors: false,
+      errorMessage: null,
+      isMenuOpen: false,
+      menuText: "",
+      menuXposition: 0,
+      menuYPosition: 0,
       colors: [
         "blue",
         "indigo",
@@ -228,13 +244,20 @@ export default {
     };
   },
   mounted() {
-    console.log(this.events);
     this.getEvents();
   },
   computed: {},
   methods: {
     contextMenuDate(e) {
-      console.log(e);
+      this.menuText = `Start daily event at ${e.date}`;
+      this.menuXposition = e.nativeEvent.pageY;
+      this.menuYposition = e.nativeEvent.pageX;
+      this.isMenuOpen = true;
+
+      console.log("contextMenuDate", e);
+    },
+    onEventMenuClose() {
+      this.isMenuOpen = false;
     },
     contextMenuTime(e) {
       console.log(e);
@@ -265,30 +288,61 @@ export default {
       this.events = currEvents;
     },
     async addEvent() {
-      if (this.name == null || this.start == null || this.end == null) {
-        console.log("this.start", this.start);
-        console.log("this.timed", this.timed);
-        this.isErrors = true;
-      } else {
-        await db.collection("calEvent").add({
-          name: this.name,
-          details: this.details,
-          start: this.start,
-          end: this.end,
-          color: this.color,
-          timed: this.timed == null ? false : true,
-        });
+      let startDay = null;
+      let endDay = null;
+      let currentStartDate = null;
+      let currentEndDate = null;
 
-        this.name = null;
-        this.details = null;
-        this.start = null;
-        this.end = null;
-        this.color = null;
-
-        this.dialog = false;
-        this.isErrors = false;
-        this.getEvents();
+      if (this.start) {
+        startDay = this.start.substring(8, 10);
+        currentStartDate = Date.parse(this.start);
       }
+
+      if (this.end) {
+        endDay = this.end.substring(8, 10);
+        currentEndDate = Date.parse(this.end);
+      }
+
+      if (this.name == null || this.start == null || this.end == null) {
+        this.errorMessage = "Please fill all required fields.";
+        this.isErrors = true;
+        return;
+      }
+
+      if ((this.timed == null || this.timed == false) && endDay < startDay) {
+        this.errorMessage = "End day must be a bigger number than Start day.";
+        this.isErrors = true;
+        return;
+      }
+
+      if (
+        this.timed == true &&
+        (currentEndDate < currentStartDate || endDay < startDay)
+      ) {
+        this.errorMessage = "End time must be a bigger than Start time.";
+        this.isErrors = true;
+        return;
+      }
+
+      this.isErrors = false;
+      await db.collection("calEvent").add({
+        name: this.name,
+        details: this.details,
+        start: this.start,
+        end: this.end,
+        color: this.color,
+        timed: this.timed == null ? false : true,
+      });
+
+      this.name = null;
+      this.details = null;
+      this.start = null;
+      this.end = null;
+      this.color = null;
+
+      this.dialog = false;
+      this.isErrors = false;
+      this.getEvents();
     },
     viewDay({ date }) {
       this.focus = date;
@@ -310,10 +364,10 @@ export default {
       this.currentlyEditing = selectedEvent.id;
     },
     showEvent({ nativeEvent, event }) {
-      console.log("in showEvent", event);
       const open = () => {
         this.selectedEvent = event;
         this.selectedElement = nativeEvent.target;
+        console.log("nativeEvent.target", nativeEvent.target);
         requestAnimationFrame(() =>
           requestAnimationFrame(() => (this.selectedOpen = true))
         );
@@ -328,24 +382,18 @@ export default {
 
       nativeEvent.stopPropagation();
     },
-    updateRange({ start, end }) {
-      this.start = start;
-      this.end = end;
-
+    updateRange() {
       //   const events = [];
-
       //   const min = new Date(`${start.date}T00:00:00`);
       //   const max = new Date(`${end.date}T23:59:59`);
       //   const days = (max.getTime() - min.getTime()) / 86400000;
       //   const eventCount = this.rnd(days, days + 20);
-
       //   for (let i = 0; i < eventCount; i++) {
       //     const allDay = this.rnd(0, 3) === 0;
       //     const firstTimestamp = this.rnd(min.getTime(), max.getTime());
       //     const first = new Date(firstTimestamp - (firstTimestamp % 900000));
       //     const secondTimestamp = this.rnd(2, allDay ? 288 : 8) * 900000;
       //     const second = new Date(first.getTime() + secondTimestamp);
-
       //     events.push({
       //       name: this.names[this.rnd(0, this.names.length - 1)],
       //       start: first,
@@ -354,7 +402,6 @@ export default {
       //       timed: !allDay,
       //     });
       //   }
-
       //   this.events = events;
     },
     rnd(a, b) {
