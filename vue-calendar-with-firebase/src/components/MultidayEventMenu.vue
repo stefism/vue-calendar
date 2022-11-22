@@ -8,7 +8,12 @@
     flat
   >
     <v-toolbar color="red" dark>
-      <v-toolbar-title v-if="!addEventErrors">{{ titleText }}</v-toolbar-title>
+      <v-toolbar-title v-if="!addEventErrors"
+        ><p style="margin-bottom: 0px !important; text-align: center">
+          Създаване на многодневно събитие
+        </p>
+        {{ titleText }}</v-toolbar-title
+      >
       <v-toolbar-title v-else>Грешка при въвеждане на датата</v-toolbar-title>
       <v-spacer></v-spacer>
     </v-toolbar>

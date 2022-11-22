@@ -137,6 +137,17 @@
               'z-index': 2,
             }"
           />
+          <DailyEventMenu
+            v-if="isDailyMenuOpen"
+            @onDailyEventMenuClose="onDailyEventMenuClose"
+            :newEvent="newDailyEvent"
+            :style="{
+              position: 'absolute',
+              top: `${menuXposition}px`,
+              left: `${menuYposition}px`,
+              'z-index': 2,
+            }"
+          />
           <v-menu
             v-model="selectedOpen"
             :close-on-content-click="false"
@@ -204,8 +215,9 @@
 import { db } from "@/main";
 import Alert from "./Alert.vue";
 import MultidayEventMenu from "./MultidayEventMenu.vue";
+import DailyEventMenu from "./DailyEventMenu.vue";
 export default {
-  components: { Alert, MultidayEventMenu },
+  components: { Alert, MultidayEventMenu, DailyEventMenu },
   data() {
     return {
       calendarDays: [1, 2, 3, 4, 5, 6, 0],
@@ -233,6 +245,7 @@ export default {
       isErrors: false,
       errorMessage: null,
       isMenuOpen: false,
+      isDailyMenuOpen: false,
       menuText: "",
       menuXposition: 0,
       menuYPosition: 0,
@@ -243,6 +256,15 @@ export default {
         end: "",
         color: "",
         timed: false,
+      },
+      newDailyEvent: {
+        name: "",
+        date: "",
+        details: "",
+        start: "",
+        end: "",
+        color: "",
+        timed: true,
       },
       isNewEventStarted: false,
       colors: [
@@ -302,6 +324,30 @@ export default {
 
       this.isMenuOpen = true;
     },
+    contextMenuTime(e) {
+      this.isMenuOpen = false;
+
+      const menuWidth = 392;
+      const menuHeight = 497;
+
+      if (e.nativeEvent.pageX + menuWidth > window.innerWidth) {
+        this.menuYposition = e.nativeEvent.pageX - menuWidth;
+      } else {
+        this.menuYposition = e.nativeEvent.pageX;
+      }
+
+      if (e.nativeEvent.pageY + menuHeight > window.innerHeight) {
+        this.menuXposition = e.nativeEvent.pageY - menuHeight;
+      } else {
+        this.menuXposition = e.nativeEvent.pageY;
+      }
+
+      this.newDailyEvent.start = e.time;
+      this.newDailyEvent.date = e.date;
+
+      this.isDailyMenuOpen = true;
+      console.log(e);
+    },
     startEventFromMenu(ev) {
       console.log("event", ev);
 
@@ -349,8 +395,8 @@ export default {
     onEventMenuClose() {
       this.isMenuOpen = false;
     },
-    contextMenuTime(e) {
-      console.log(e);
+    onDailyEventMenuClose() {
+      this.isDailyMenuOpen = false;
     },
     async updateEvent(selectedEvent) {
       //in this.currentlyEditing we hold the selectedEvent.id
