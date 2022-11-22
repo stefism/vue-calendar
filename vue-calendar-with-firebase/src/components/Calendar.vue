@@ -120,7 +120,7 @@
             @click:date="viewDay"
             @change="updateRange"
           ></v-calendar>
-          <EventMenu
+          <MultidayEventMenu
             v-if="isMenuOpen"
             :titleText="menuText"
             :addEventErrors="isErrors"
@@ -203,9 +203,9 @@
 <script>
 import { db } from "@/main";
 import Alert from "./Alert.vue";
-import EventMenu from "./EventMenu.vue";
+import MultidayEventMenu from "./MultidayEventMenu.vue";
 export default {
-  components: { Alert, EventMenu },
+  components: { Alert, MultidayEventMenu },
   data() {
     return {
       calendarDays: [1, 2, 3, 4, 5, 6, 0],
