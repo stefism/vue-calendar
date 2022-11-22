@@ -11,7 +11,7 @@ export default {
   props: {
     message: String,
     color: String,
-    value: Object,
+    value: Boolean,
   },
 };
 </script>

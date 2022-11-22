@@ -122,6 +122,7 @@
             v-if="isMenuOpen"
             :titleText="menuText"
             @onEventMenuClose="onEventMenuClose()"
+            @startEventFromMenu="startEventFromMenu"
             :style="{
               position: 'absolute',
               top: `${menuXposition}px`,
@@ -222,6 +223,15 @@ export default {
       menuText: "",
       menuXposition: 0,
       menuYPosition: 0,
+      newEvent: {
+        name: "",
+        details: "",
+        start: "",
+        end: "",
+        color: "",
+        timed: false,
+      },
+      isNewEventStarted: false,
       colors: [
         "blue",
         "indigo",
@@ -249,8 +259,16 @@ export default {
   computed: {},
   methods: {
     contextMenuDate(e) {
-      this.menuText = `Start daily event at ${e.date}`;
+      console.log(e);
       const menuWidth = 350;
+
+      if (!this.isNewEventStarted) {
+        this.newEvent.start = e.date;
+        this.menuText = `Start daily event at ${e.date}`;
+      } else {
+        this.newEvent.end = e.date;
+        this.menuText = `End daily event at ${e.date}`;
+      }
 
       if (e.nativeEvent.pageX + menuWidth > window.innerWidth) {
         this.menuYposition = e.nativeEvent.pageX - menuWidth;
@@ -260,6 +278,18 @@ export default {
 
       this.menuXposition = e.nativeEvent.pageY;
       this.isMenuOpen = true;
+    },
+    startEventFromMenu(ev) {
+      console.log("event", ev);
+
+      this.newEvent.name = ev.name;
+      this.newEvent.color = ev.color;
+      this.newEvent.details = ev.details;
+
+      this.isNewEventStarted = true;
+      this.isMenuOpen = false;
+
+      console.log("this.newEvent", this.newEvent);
     },
     onEventMenuClose() {
       this.isMenuOpen = false;
