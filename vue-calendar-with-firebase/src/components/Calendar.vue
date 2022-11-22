@@ -6,7 +6,7 @@
         <v-sheet height="64">
           <v-toolbar flat>
             <v-btn color="primary" class="mr-4" @click="dialog = true" dark>
-              New Event
+              Ново събитие
             </v-btn>
             <v-btn
               outlined
@@ -14,7 +14,7 @@
               color="grey darken-2"
               @click="setToday"
             >
-              Today
+              Днес
             </v-btn>
             <v-btn fab text small color="grey darken-2" @click="prev">
               <v-icon small> mdi-chevron-left </v-icon>
@@ -35,16 +35,16 @@
               </template>
               <v-list>
                 <v-list-item @click="type = 'day'">
-                  <v-list-item-title>Day</v-list-item-title>
+                  <v-list-item-title>Ден</v-list-item-title>
                 </v-list-item>
                 <v-list-item @click="type = 'week'">
-                  <v-list-item-title>Week</v-list-item-title>
+                  <v-list-item-title>Седмица</v-list-item-title>
                 </v-list-item>
                 <v-list-item @click="type = 'month'">
-                  <v-list-item-title>Month</v-list-item-title>
+                  <v-list-item-title>Месец</v-list-item-title>
                 </v-list-item>
                 <v-list-item @click="type = '4day'">
-                  <v-list-item-title>4 days</v-list-item-title>
+                  <v-list-item-title>4 дневка</v-list-item-title>
                 </v-list-item>
               </v-list>
             </v-menu>
@@ -58,7 +58,7 @@
                 <v-text-field
                   v-model="name"
                   type="text"
-                  label="event name (required)"
+                  label="Име (задължително)"
                 >
                 </v-text-field>
                 <v-text-field v-model="details" type="text" label="details">
@@ -66,32 +66,32 @@
                 <v-text-field
                   v-model="start"
                   :type="timed ? 'datetime-local' : 'date'"
-                  label="start (required)"
+                  label="Начало (задължително)"
                 >
                 </v-text-field>
                 <v-text-field
                   v-model="end"
                   :type="timed ? 'datetime-local' : 'date'"
-                  label="end (required)"
+                  label="Край (задължително)"
                 >
                 </v-text-field>
                 <v-text-field
                   v-model="color"
                   type="color"
-                  label="color (click to open color menu)"
+                  label="Цвят (кликнете за да отворите)"
                 >
                 </v-text-field>
                 <v-checkbox
                   v-model="timed"
                   dense
-                  label="Timed event (a part of the day)"
+                  label="Часово събитие (за част от деня)"
                   color="info"
                   :value="true"
                   hide-details
                   class="mb-2"
                 ></v-checkbox>
                 <v-btn type="submit" color="primary" class="mr-4"
-                  >Create Event</v-btn
+                  >Създай събитие</v-btn
                 >
               </v-form>
             </v-container>
@@ -111,6 +111,8 @@
             :events="events"
             :event-color="getEventColor"
             :type="type"
+            :weekdays="calendarDays"
+            locale="bg"
             @contextmenu:date="contextMenuDate"
             @contextmenu:time="contextMenuTime"
             @click:event="showEvent"
@@ -121,8 +123,13 @@
           <EventMenu
             v-if="isMenuOpen"
             :titleText="menuText"
-            @onEventMenuClose="onEventMenuClose()"
+            :addEventErrors="isErrors"
+            :isNewEventStarted="isNewEventStarted"
+            :newEvent="newEvent"
+            @onEventMenuClose="onEventMenuClose"
             @startEventFromMenu="startEventFromMenu"
+            @cancelAddNewEvent="cancelAddNewEvent"
+            @saveEventToCalendar="saveEventToCalendar"
             :style="{
               position: 'absolute',
               top: `${menuXposition}px`,
@@ -167,17 +174,17 @@
               </v-card-text>
               <v-card-actions>
                 <v-btn text color="secondary" @click="selectedOpen = false">
-                  Close
+                  Затвори
                 </v-btn>
                 <v-btn
                   text
                   v-if="currentlyEditing != selectedEvent.id"
                   @click.prevent="editEvent(selectedEvent)"
                 >
-                  Edit
+                  Редакция
                 </v-btn>
                 <v-btn text v-else @click.prevent="updateEvent(selectedEvent)">
-                  Save
+                  Запис
                 </v-btn>
               </v-card-actions>
             </v-card>
@@ -185,6 +192,11 @@
         </v-sheet>
       </v-col>
     </v-row>
+    <Alert
+      :message="`Стартирали сте многодневно събитие от дата (година-месец-ден) ${newEvent.start}. Кликнете с десен бутон на мишката върху крайна дата за да завършите събитието.`"
+      :value="isNewEventStarted"
+      color="green"
+    />
   </div>
 </template>
 
@@ -196,14 +208,15 @@ export default {
   components: { Alert, EventMenu },
   data() {
     return {
+      calendarDays: [1, 2, 3, 4, 5, 6, 0],
       today: new Date().toISOString().substring(0, 10),
       focus: new Date().toISOString().substring(0, 10),
       type: "month",
       typeToLabel: {
-        month: "Month",
-        week: "Week",
-        day: "Day",
-        "4day": "4 Days",
+        month: "Месец",
+        week: "Седмица",
+        day: "Ден",
+        "4day": "4 Дневка",
       },
       name: null,
       details: null,
@@ -260,15 +273,7 @@ export default {
   methods: {
     contextMenuDate(e) {
       console.log(e);
-      const menuWidth = 350;
-
-      if (!this.isNewEventStarted) {
-        this.newEvent.start = e.date;
-        this.menuText = `Start daily event at ${e.date}`;
-      } else {
-        this.newEvent.end = e.date;
-        this.menuText = `End daily event at ${e.date}`;
-      }
+      const menuWidth = 450;
 
       if (e.nativeEvent.pageX + menuWidth > window.innerWidth) {
         this.menuYposition = e.nativeEvent.pageX - menuWidth;
@@ -277,6 +282,24 @@ export default {
       }
 
       this.menuXposition = e.nativeEvent.pageY;
+
+      if (!this.isNewEventStarted) {
+        this.newEvent.start = e.date;
+        this.menuText = `Начална дата (година-месец-ден): ${e.date}`;
+      } else {
+        this.newEvent.end = e.date;
+        const startDay = this.newEvent.start.substring(8, 10);
+        const endDay = this.newEvent.end.substring(8, 10);
+
+        if (endDay <= startDay) {
+          this.isErrors = true;
+        } else {
+          this.isErrors = false;
+        }
+
+        this.menuText = `Крайна дата (година-месец-ден): ${e.date}`;
+      }
+
       this.isMenuOpen = true;
     },
     startEventFromMenu(ev) {
@@ -290,6 +313,38 @@ export default {
       this.isMenuOpen = false;
 
       console.log("this.newEvent", this.newEvent);
+    },
+    async saveEventToCalendar() {
+      await db.collection("calEvent").add({
+        name: this.newEvent.name,
+        details: this.newEvent.details,
+        start: this.newEvent.start,
+        end: this.newEvent.end,
+        color: this.newEvent.color,
+        timed: this.newEvent.timed,
+      });
+
+      this.newEvent.name = "";
+      this.newEvent.details = "";
+      this.newEvent.start = "";
+      this.newEvent.end = "";
+      this.newEvent.color = "";
+
+      this.dialog = false;
+      this.isErrors = false;
+
+      this.isNewEventStarted = false;
+      this.isMenuOpen = false;
+      this.getEvents();
+    },
+    cancelAddNewEvent() {
+      this.newEvent.name = "";
+      this.newEvent.color = "";
+      this.newEvent.details = "";
+
+      this.isErrors = false;
+      this.isNewEventStarted = false;
+      this.isMenuOpen = false;
     },
     onEventMenuClose() {
       this.isMenuOpen = false;
@@ -339,13 +394,13 @@ export default {
       }
 
       if (this.name == null || this.start == null || this.end == null) {
-        this.errorMessage = "Please fill all required fields.";
+        this.errorMessage = "Моля, попълнете всички полета.";
         this.isErrors = true;
         return;
       }
 
       if ((this.timed == null || this.timed == false) && endDay < startDay) {
-        this.errorMessage = "End day must be a bigger number than Start day.";
+        this.errorMessage = "Крайната дата трябва да е по-голяма от началната.";
         this.isErrors = true;
         return;
       }
@@ -354,7 +409,7 @@ export default {
         this.timed == true &&
         (currentEndDate < currentStartDate || endDay < startDay)
       ) {
-        this.errorMessage = "End time must be a bigger than Start time.";
+        this.errorMessage = "Началното време трябва да е по-голямо крайното.";
         this.isErrors = true;
         return;
       }
