@@ -1,12 +1,19 @@
 <template>
-  <v-card elevation="4" color="grey lighten-4" min-width="350px" flat>
+  <v-card
+    outlined
+    shaped
+    elevation="1"
+    color="grey lighten-4"
+    min-width="350px"
+    flat
+  >
     <v-toolbar color="red" dark>
       <v-toolbar-title>{{ titleText }}</v-toolbar-title>
       <v-spacer></v-spacer>
     </v-toolbar>
     <v-card-text>
       <form>
-        <textarea-autosize> Test test </textarea-autosize>
+        <textarea> Test test </textarea>
       </form>
     </v-card-text>
     <v-card-actions>

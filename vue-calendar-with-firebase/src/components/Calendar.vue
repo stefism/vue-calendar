@@ -250,11 +250,16 @@ export default {
   methods: {
     contextMenuDate(e) {
       this.menuText = `Start daily event at ${e.date}`;
-      this.menuXposition = e.nativeEvent.pageY;
-      this.menuYposition = e.nativeEvent.pageX;
-      this.isMenuOpen = true;
+      const menuWidth = 350;
 
-      console.log("contextMenuDate", e);
+      if (e.nativeEvent.pageX + menuWidth > window.innerWidth) {
+        this.menuYposition = e.nativeEvent.pageX - menuWidth;
+      } else {
+        this.menuYposition = e.nativeEvent.pageX;
+      }
+
+      this.menuXposition = e.nativeEvent.pageY;
+      this.isMenuOpen = true;
     },
     onEventMenuClose() {
       this.isMenuOpen = false;
