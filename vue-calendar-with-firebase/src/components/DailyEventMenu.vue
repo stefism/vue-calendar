@@ -48,10 +48,8 @@
       <v-btn @click="$emit('onDailyEventMenuClose')" text color="secondary">
         Затвори
       </v-btn>
-      <v-btn @click="$emit('cancelAddNewEvent')" text color="secondary">
-        Откажи
-      </v-btn>
-      <v-btn @click="$emit('saveEventToCalendar')" text color="secondary">
+      <v-btn @click="cancelEvent" text color="secondary"> Откажи </v-btn>
+      <v-btn @click="addNewEvent" text color="secondary">
         Запиши събитието
       </v-btn>
     </v-card-actions>
@@ -75,7 +73,7 @@ export default {
   data() {
     return {
       isErrors: false,
-      errorMessage: "Моля, попълнете всички полета.",
+      errorMessage: "",
       event: {
         name: "",
         start: "",
@@ -91,18 +89,39 @@ export default {
     },
   },
   methods: {
-    startEventFromMenu() {
+    addNewEvent() {
+      const startTime = Date.parse(`${this.newEvent.date}T${this.event.start}`);
+      const endTime = Date.parse(`${this.newEvent.date}T${this.event.end}`);
+
       if (
         this.event.name == "" ||
         this.event.color == "" ||
-        this.event.details == ""
+        this.event.details == "" ||
+        this.event.end == ""
       ) {
+        this.errorMessage = "Моля, попълнете всички полета.";
+        this.isErrors = true;
+        return;
+      }
+
+      if (endTime < startTime) {
+        this.errorMessage = "Крайния час е по-малък от началния.";
         this.isErrors = true;
         return;
       }
 
       this.isErrors = false;
-      this.$emit("startEventFromMenu", this.event);
+      this.$emit("addNewDailyEvent", this.event);
+    },
+    cancelEvent() {
+      this.event.name = "";
+      this.event.start = "";
+      this.event.end = "";
+      this.event.color = "";
+      this.event.details = "";
+
+      this.isErrors = false;
+      this.$emit("cancelNewDailyEvent");
     },
   },
 };

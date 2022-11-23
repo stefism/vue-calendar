@@ -140,6 +140,8 @@
           <DailyEventMenu
             v-if="isDailyMenuOpen"
             @onDailyEventMenuClose="onDailyEventMenuClose"
+            @addNewDailyEvent="addNewDailyEvent"
+            @cancelNewDailyEvent="cancelNewDailyEvent"
             :newEvent="newDailyEvent"
             :style="{
               position: 'absolute',
@@ -394,6 +396,49 @@ export default {
     },
     onEventMenuClose() {
       this.isMenuOpen = false;
+    },
+    async addNewDailyEvent(ev) {
+      this.newDailyEvent.name = ev.name;
+      this.newDailyEvent.details = ev.details;
+      this.newDailyEvent.color = ev.color;
+
+      this.newDailyEvent.start = `${this.newDailyEvent.date}T${ev.start}`;
+      this.newDailyEvent.end = `${this.newDailyEvent.date}T${ev.end}`;
+
+      await db.collection("calEvent").add({
+        name: this.newDailyEvent.name,
+        details: this.newDailyEvent.details,
+        start: this.newDailyEvent.start,
+        end: this.newDailyEvent.end,
+        color: this.newDailyEvent.color,
+        timed: this.newDailyEvent.timed,
+      });
+
+      this.newDailyEvent.name = "";
+      this.newDailyEvent.details = "";
+      this.newDailyEvent.start = "";
+      this.newDailyEvent.end = "";
+      this.newDailyEvent.color = "";
+      this.newDailyEvent.date = "";
+      this.newDailyEvent.timed = true;
+
+      this.isErrors = false;
+      this.isDailyMenuOpen = false;
+
+      this.getEvents();
+
+      console.log("this.newDailyEvent", this.newDailyEvent);
+    },
+    cancelNewDailyEvent() {
+      this.newDailyEvent.name = "";
+      this.newDailyEvent.date = "";
+      this.newDailyEvent.details = "";
+      this.newDailyEvent.start = "";
+      this.newDailyEvent.end = "";
+      this.newDailyEvent.color = "";
+
+      this.isErrors = false;
+      this.isDailyMenuOpen = false;
     },
     onDailyEventMenuClose() {
       this.isDailyMenuOpen = false;
