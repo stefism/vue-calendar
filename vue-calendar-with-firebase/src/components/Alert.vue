@@ -1,6 +1,12 @@
 <!-- eslint-disable vue/multi-word-component-names -->
 <template>
-  <v-alert :value="value" border="bottom" :color="color" dark>
+  <v-alert
+    icon="mdi-alert-circle-check-outline"
+    :value="value"
+    border="bottom"
+    :color="color"
+    dark
+  >
     {{ message }}
   </v-alert>
 </template>

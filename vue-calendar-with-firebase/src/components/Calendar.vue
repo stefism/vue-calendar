@@ -172,22 +172,83 @@
               </v-toolbar>
               <v-card-text>
                 <form v-if="currentlyEditing != selectedEvent.id">
-                  {{ selectedEvent.details }}
+                  <p><b>Детайли:</b> {{ selectedEvent.details }}</p>
+                  <div v-if="!selectedEvent.timed">
+                    <p><b>Начална дата:</b> {{ selectedEvent.start }}</p>
+                    <p><b>Крайна дата:</b> {{ selectedEvent.end }}</p>
+                  </div>
+                  <div v-else>
+                    <p>
+                      <b>Начален час:</b>
+                      {{ selectedEvent.startTime }} ч.
+                    </p>
+                    <p>
+                      <b>Краен час:</b>
+                      {{ selectedEvent.endTime }} ч.
+                    </p>
+                  </div>
+                  <p><b>Цвят:</b> {{ selectedEvent.color }}</p>
                 </form>
                 <form v-else>
-                  <textarea-autosize
+                  <v-text-field
+                    v-model="selectedEvent.name"
+                    type="text"
+                    label="Име"
+                  >
+                  </v-text-field>
+                  <v-text-field
                     v-model="selectedEvent.details"
                     type="text"
-                    style="width: 100%"
-                    :min-height="100"
-                    placeholder="add note"
+                    label="Описание"
                   >
-                  </textarea-autosize>
+                  </v-text-field>
+                  <div v-if="!selectedEvent.timed">
+                    <v-text-field
+                      v-model="selectedEvent.start"
+                      type="date"
+                      label="Начална дата"
+                    >
+                    </v-text-field>
+                    <v-text-field
+                      v-model="selectedEvent.end"
+                      type="date"
+                      label="Крайна дата"
+                    >
+                    </v-text-field>
+                  </div>
+                  <div v-else>
+                    <v-text-field
+                      v-model="selectedEvent.startTime"
+                      type="time"
+                      label="Начален час"
+                    >
+                    </v-text-field>
+                    <v-text-field
+                      v-model="selectedEvent.endTime"
+                      type="time"
+                      label="Краен час"
+                    >
+                    </v-text-field>
+                  </div>
+                  <v-text-field
+                    v-model="selectedEvent.color"
+                    type="color"
+                    label="Цвят (Кликнете за да отворите)"
+                  >
+                  </v-text-field>
                 </form>
               </v-card-text>
               <v-card-actions>
-                <v-btn text color="secondary" @click="selectedOpen = false">
+                <v-btn
+                  v-if="currentlyEditing != selectedEvent.id"
+                  text
+                  color="secondary"
+                  @click="selectedOpen = false"
+                >
                   Затвори
+                </v-btn>
+                <v-btn v-else text color="secondary" @click="cancelEditEvent">
+                  Откажи промените
                 </v-btn>
                 <v-btn
                   text
@@ -210,18 +271,32 @@
       :value="isNewEventStarted"
       color="green"
     />
+    <Alert
+      style="
+        margin-top: 20px;
+        margin-left: 12px;
+        max-width: 97%;
+        box-shadow: 2px 2px 3px 2px lightblue;
+      "
+      :message="`${messages.saveEventToCalendarInfo}`"
+      :value="!isNewEventStarted"
+      color="blue"
+    />
   </div>
 </template>
 
 <script>
 import { db } from "@/main";
 import Alert from "./Alert.vue";
+import { messages } from "@/assets/messages";
 import MultidayEventMenu from "./MultidayEventMenu.vue";
 import DailyEventMenu from "./DailyEventMenu.vue";
+
 export default {
   components: { Alert, MultidayEventMenu, DailyEventMenu },
   data() {
     return {
+      messages: messages,
       calendarDays: [1, 2, 3, 4, 5, 6, 0],
       today: new Date().toISOString().substring(0, 10),
       focus: new Date().toISOString().substring(0, 10),
@@ -269,25 +344,8 @@ export default {
         timed: true,
       },
       isNewEventStarted: false,
-      colors: [
-        "blue",
-        "indigo",
-        "deep-purple",
-        "cyan",
-        "green",
-        "orange",
-        "grey darken-1",
-      ],
-      names: [
-        "Meeting",
-        "Holiday",
-        "PTO",
-        "Travel",
-        "Event",
-        "Birthday",
-        "Conference",
-        "Party",
-      ],
+      currentNativeEvent: null,
+      currentEvent: null,
     };
   },
   mounted() {
@@ -295,6 +353,10 @@ export default {
   },
   computed: {},
   methods: {
+    getTimeStringFromDate(date) {
+      const time = date.substring(11);
+      return time;
+    },
     contextMenuDate(e) {
       console.log(e);
       const menuWidth = 450;
@@ -385,6 +447,15 @@ export default {
       this.isMenuOpen = false;
       this.getEvents();
     },
+    cancelEditEvent() {
+      this.selectedEvent = {};
+      this.currentlyEditing = null;
+      this.selectedOpen = false;
+      this.showEvent({
+        nativeEvent: this.currentNativeEvent,
+        event: this.currentEvent,
+      });
+    },
     cancelAddNewEvent() {
       this.newEvent.name = "";
       this.newEvent.color = "";
@@ -445,11 +516,23 @@ export default {
     },
     async updateEvent(selectedEvent) {
       //in this.currentlyEditing we hold the selectedEvent.id
+
+      if (selectedEvent.timed) {
+        selectedEvent.start = `${selectedEvent.date}T${selectedEvent.startTime}`;
+        selectedEvent.end = `${selectedEvent.date}T${selectedEvent.endTime}`;
+      }
+
       await db.collection("calEvent").doc(this.currentlyEditing).update({
+        name: selectedEvent.name,
+        color: selectedEvent.color,
         details: selectedEvent.details,
+        start: selectedEvent.start,
+        end: selectedEvent.end,
       });
+
       this.selectedOpen = false;
       this.currentlyEditing = null;
+      this.getEvents();
     },
     async deleteEvent(selectedEventId) {
       await db.collection("calEvent").doc(selectedEventId).delete();
@@ -485,13 +568,13 @@ export default {
       }
 
       if (this.name == null || this.start == null || this.end == null) {
-        this.errorMessage = "Моля, попълнете всички полета.";
+        this.errorMessage = this.messages.fillAllfields;
         this.isErrors = true;
         return;
       }
 
       if ((this.timed == null || this.timed == false) && endDay < startDay) {
-        this.errorMessage = "Крайната дата трябва да е по-голяма от началната.";
+        this.errorMessage = "Крайната дата е по-голяма от началната.";
         this.isErrors = true;
         return;
       }
@@ -500,7 +583,7 @@ export default {
         this.timed == true &&
         (currentEndDate < currentStartDate || endDay < startDay)
       ) {
-        this.errorMessage = "Началното време трябва да е по-голямо крайното.";
+        this.errorMessage = "Крайния час е по-малък от началния.";
         this.isErrors = true;
         return;
       }
@@ -545,10 +628,22 @@ export default {
       this.currentlyEditing = selectedEvent.id;
     },
     showEvent({ nativeEvent, event }) {
+      //This properties is need if cancelling edit event. In this case we need to show again the same event in view mode with original data. To do this we called showEvent() method again into cancelEditEvent() method.
+      this.currentNativeEvent = nativeEvent;
+      this.currentEvent = event;
+
       const open = () => {
-        this.selectedEvent = event;
+        this.selectedEvent = JSON.parse(JSON.stringify(event));
+
+        if (event.timed) {
+          this.selectedEvent.date = event.start.substring(0, 10);
+          this.selectedEvent.startTime = this.getTimeStringFromDate(
+            event.start
+          );
+          this.selectedEvent.endTime = this.getTimeStringFromDate(event.end);
+        }
+
         this.selectedElement = nativeEvent.target;
-        console.log("nativeEvent.target", nativeEvent.target);
         requestAnimationFrame(() =>
           requestAnimationFrame(() => (this.selectedOpen = true))
         );
@@ -563,31 +658,7 @@ export default {
 
       nativeEvent.stopPropagation();
     },
-    updateRange() {
-      //   const events = [];
-      //   const min = new Date(`${start.date}T00:00:00`);
-      //   const max = new Date(`${end.date}T23:59:59`);
-      //   const days = (max.getTime() - min.getTime()) / 86400000;
-      //   const eventCount = this.rnd(days, days + 20);
-      //   for (let i = 0; i < eventCount; i++) {
-      //     const allDay = this.rnd(0, 3) === 0;
-      //     const firstTimestamp = this.rnd(min.getTime(), max.getTime());
-      //     const first = new Date(firstTimestamp - (firstTimestamp % 900000));
-      //     const secondTimestamp = this.rnd(2, allDay ? 288 : 8) * 900000;
-      //     const second = new Date(first.getTime() + secondTimestamp);
-      //     events.push({
-      //       name: this.names[this.rnd(0, this.names.length - 1)],
-      //       start: first,
-      //       end: second,
-      //       color: this.colors[this.rnd(0, this.colors.length - 1)],
-      //       timed: !allDay,
-      //     });
-      //   }
-      //   this.events = events;
-    },
-    rnd(a, b) {
-      return Math.floor((b - a + 1) * Math.random()) + a;
-    },
+    updateRange() {},
   },
 };
 </script>
