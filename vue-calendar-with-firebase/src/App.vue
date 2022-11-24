@@ -1,20 +1,21 @@
 <template>
   <v-app>
     <v-main>
-      <Calendar />
+      <router-view></router-view>
     </v-main>
   </v-app>
 </template>
 
 <script>
-import Calendar from "@/components/Calendar.vue";
 export default {
   name: "App",
 
-  components: {
-    Calendar,
+  components: {},
+  mounted() {
+    if (this.$router.currentRoute.fullPath != "/home") {
+      this.$router.push("/home");
+    }
   },
-
   data: () => ({
     //
   }),
