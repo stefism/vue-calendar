@@ -1,6 +1,19 @@
 <!-- eslint-disable vue/multi-word-component-names -->
 <template>
   <div>
+    <v-alert border="bottom" color="blue" :value="true">
+      <div style="display: flex; justify-content: space-evenly">
+        <h3 style="color: white">Здравейте {{ userEmail }}</h3>
+        <v-btn @click="logout">Изход</v-btn>
+      </div>
+      <v-progress-linear
+        v-if="loading"
+        height="20"
+        indeterminate
+        color="blue darken-2"
+        >Зареждане на събитята</v-progress-linear
+      >
+    </v-alert>
     <v-row class="fill-height">
       <v-col>
         <v-sheet height="64">
@@ -306,7 +319,7 @@
 </template>
 
 <script>
-import { db } from "@/main";
+import { db, user } from "@/main";
 import Alert from "./Alert.vue";
 import { messages } from "@/assets/messages";
 import MultidayEventMenu from "./MultidayEventMenu.vue";
@@ -316,6 +329,9 @@ export default {
   components: { Alert, MultidayEventMenu, DailyEventMenu },
   data() {
     return {
+      loading: false,
+      userEmail: null,
+      userId: null,
       messages: messages,
       calendarDays: [1, 2, 3, 4, 5, 6, 0],
       today: new Date().toISOString().substring(0, 10),
@@ -369,10 +385,21 @@ export default {
     };
   },
   mounted() {
-    this.getEvents();
+    user.onAuthStateChanged((u) => {
+      if (u != null) {
+        this.userEmail = u.email;
+        this.userId = u.uid;
+        this.getEvents();
+      }
+    });
   },
   computed: {},
   methods: {
+    logout() {
+      user.signOut();
+      this.userEmail = null;
+      this.userId = null;
+    },
     getTimeStringFromDate(date) {
       const time = date.substring(11);
       return time;
@@ -382,7 +409,6 @@ export default {
       this.isErrors = false;
     },
     contextMenuDate(e) {
-      console.log(e);
       const menuWidth = 450;
 
       if (e.nativeEvent.pageX + menuWidth > window.innerWidth) {
@@ -456,6 +482,7 @@ export default {
         end: this.newEvent.end,
         color: this.newEvent.color,
         timed: this.newEvent.timed,
+        userId: this.userId,
       });
 
       this.newEvent.name = "";
@@ -508,6 +535,7 @@ export default {
         end: this.newDailyEvent.end,
         color: this.newDailyEvent.color,
         timed: this.newDailyEvent.timed,
+        userId: this.userId,
       });
 
       this.newDailyEvent.name = "";
@@ -586,7 +614,12 @@ export default {
       this.getEvents();
     },
     async getEvents() {
-      let snapshot = await db.collection("calEvent").get();
+      this.loading = true;
+
+      let snapshot = await db
+        .collection("calEvent")
+        .where("userId", "==", this.userId)
+        .get();
       let currEvents = [];
 
       snapshot.forEach((doc) => {
@@ -596,6 +629,7 @@ export default {
       });
 
       this.events = currEvents;
+      this.loading = false;
     },
     async addEvent() {
       let startDay = null;
@@ -642,6 +676,7 @@ export default {
         start: this.start,
         end: this.end,
         color: this.color,
+        userId: this.userId,
         timed: this.timed == null ? false : true,
       });
 
