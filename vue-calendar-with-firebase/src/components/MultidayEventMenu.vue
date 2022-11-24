@@ -28,6 +28,8 @@
         <v-text-field v-model="event.details" type="text" label="Детайли">
         </v-text-field>
         <v-text-field
+          hide-details
+          dense
           v-model="event.color"
           type="color"
           label="Цвят (Кликнете за да отворите)"

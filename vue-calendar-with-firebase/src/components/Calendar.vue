@@ -51,10 +51,10 @@
           </v-toolbar>
         </v-sheet>
         <!-- Add event dialog -->
-        <v-dialog v-model="dialog" max-width="500">
+        <v-dialog persistent v-model="dialog" max-width="500">
           <v-card>
             <v-container>
-              <v-form @submit.prevent="addEvent">
+              <v-form>
                 <v-text-field
                   v-model="name"
                   type="text"
@@ -90,7 +90,13 @@
                   hide-details
                   class="mb-2"
                 ></v-checkbox>
-                <v-btn type="submit" color="primary" class="mr-4"
+                <v-btn
+                  @click.prevent="closeEventDialog"
+                  color="primary"
+                  class="mr-4"
+                  >Затвори</v-btn
+                >
+                <v-btn @click.prevent="addEvent" color="info" class="mr-4"
                   >Създай събитие</v-btn
                 >
               </v-form>
@@ -151,10 +157,11 @@
             }"
           />
           <v-menu
+            :close-on-click="false"
             v-model="selectedOpen"
             :close-on-content-click="false"
             :activator="selectedElement"
-            offset-x
+            style="top: 300px !important"
           >
             <v-card color="grey lighten-4" min-width="350px" flat>
               <v-toolbar :color="selectedEvent.color" dark>
@@ -170,7 +177,12 @@
                   <v-icon>mdi-dots-vertical</v-icon>
                 </v-btn>
               </v-toolbar>
-              <v-card-text>
+              <v-card-text style="padding-bottom: 0px">
+                <Alert
+                  :message="errorMessage"
+                  :value="isErrors"
+                  color="pink darken-1"
+                />
                 <form v-if="currentlyEditing != selectedEvent.id">
                   <p><b>Детайли:</b> {{ selectedEvent.details }}</p>
                   <div v-if="!selectedEvent.timed">
@@ -191,12 +203,14 @@
                 </form>
                 <form v-else>
                   <v-text-field
+                    dense
                     v-model="selectedEvent.name"
                     type="text"
                     label="Име"
                   >
                   </v-text-field>
                   <v-text-field
+                    dense
                     v-model="selectedEvent.details"
                     type="text"
                     label="Описание"
@@ -204,12 +218,14 @@
                   </v-text-field>
                   <div v-if="!selectedEvent.timed">
                     <v-text-field
+                      dense
                       v-model="selectedEvent.start"
                       type="date"
                       label="Начална дата"
                     >
                     </v-text-field>
                     <v-text-field
+                      dense
                       v-model="selectedEvent.end"
                       type="date"
                       label="Крайна дата"
@@ -218,12 +234,14 @@
                   </div>
                   <div v-else>
                     <v-text-field
+                      dense
                       v-model="selectedEvent.startTime"
                       type="time"
                       label="Начален час"
                     >
                     </v-text-field>
                     <v-text-field
+                      dense
                       v-model="selectedEvent.endTime"
                       type="time"
                       label="Краен час"
@@ -231,6 +249,8 @@
                     </v-text-field>
                   </div>
                   <v-text-field
+                    dense
+                    hide-details
                     v-model="selectedEvent.color"
                     type="color"
                     label="Цвят (Кликнете за да отворите)"
@@ -238,7 +258,7 @@
                   </v-text-field>
                 </form>
               </v-card-text>
-              <v-card-actions>
+              <v-card-actions style="padding-top: 0px">
                 <v-btn
                   v-if="currentlyEditing != selectedEvent.id"
                   text
@@ -357,6 +377,10 @@ export default {
       const time = date.substring(11);
       return time;
     },
+    closeEventDialog() {
+      this.dialog = false;
+      this.isErrors = false;
+    },
     contextMenuDate(e) {
       console.log(e);
       const menuWidth = 450;
@@ -451,6 +475,7 @@ export default {
       this.selectedEvent = {};
       this.currentlyEditing = null;
       this.selectedOpen = false;
+      this.isErrors = false;
       this.showEvent({
         nativeEvent: this.currentNativeEvent,
         event: this.currentEvent,
@@ -516,10 +541,31 @@ export default {
     },
     async updateEvent(selectedEvent) {
       //in this.currentlyEditing we hold the selectedEvent.id
+      if (
+        selectedEvent.name == "" ||
+        selectedEvent.details == "" ||
+        selectedEvent.start == "" ||
+        selectedEvent.end == ""
+      ) {
+        this.errorMessage = this.messages.fillAllfieldsError;
+        this.isErrors = true;
+        return;
+      }
 
       if (selectedEvent.timed) {
         selectedEvent.start = `${selectedEvent.date}T${selectedEvent.startTime}`;
         selectedEvent.end = `${selectedEvent.date}T${selectedEvent.endTime}`;
+      }
+
+      const startDate = Date.parse(selectedEvent.start);
+      const endDate = Date.parse(selectedEvent.end);
+
+      if (endDate < startDate) {
+        this.errorMessage = selectedEvent.timed
+          ? this.messages.endTimeError
+          : this.messages.endDayError;
+        this.isErrors = true;
+        return;
       }
 
       await db.collection("calEvent").doc(this.currentlyEditing).update({
@@ -567,14 +613,15 @@ export default {
         currentEndDate = Date.parse(this.end);
       }
 
+      //Input validation
       if (this.name == null || this.start == null || this.end == null) {
-        this.errorMessage = this.messages.fillAllfields;
+        this.errorMessage = this.messages.fillAllfieldsError;
         this.isErrors = true;
         return;
       }
 
       if ((this.timed == null || this.timed == false) && endDay < startDay) {
-        this.errorMessage = "Крайната дата е по-голяма от началната.";
+        this.errorMessage = this.messages.endDayError;
         this.isErrors = true;
         return;
       }
@@ -583,7 +630,7 @@ export default {
         this.timed == true &&
         (currentEndDate < currentStartDate || endDay < startDay)
       ) {
-        this.errorMessage = "Крайния час е по-малък от началния.";
+        this.errorMessage = this.messages.endTimeError;
         this.isErrors = true;
         return;
       }
@@ -631,6 +678,8 @@ export default {
       //This properties is need if cancelling edit event. In this case we need to show again the same event in view mode with original data. To do this we called showEvent() method again into cancelEditEvent() method.
       this.currentNativeEvent = nativeEvent;
       this.currentEvent = event;
+
+      this.isErrors = false;
 
       const open = () => {
         this.selectedEvent = JSON.parse(JSON.stringify(event));
