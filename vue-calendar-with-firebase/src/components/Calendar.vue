@@ -63,6 +63,29 @@
             </v-menu>
           </v-toolbar>
         </v-sheet>
+
+        <!-- Confirm delete event dialog -->
+        <v-dialog width="500" v-model="confirmDeleteDialog" persistent>
+          <v-card class="mx-auto">
+            <v-toolbar color="yellow">
+              <h3>Премахване на събитие</h3>
+            </v-toolbar>
+            <v-card-text class="mt-5">
+              <h3>Сигурни ли сте, че искате да премахнете това събите?</h3>
+            </v-card-text>
+            <v-card-actions>
+              <v-btn
+                @click="deleteEvent(selectedEvent.id)"
+                color="red lighten-4"
+                >Премахни</v-btn
+              >
+              <v-btn color="blue lighten-4" @click="confirmDeleteDialog = false"
+                >Откажи</v-btn
+              >
+            </v-card-actions>
+          </v-card>
+        </v-dialog>
+
         <!-- Add event dialog -->
         <v-dialog persistent v-model="dialog" max-width="500">
           <v-card>
@@ -178,9 +201,19 @@
           >
             <v-card color="grey lighten-4" min-width="350px" flat>
               <v-toolbar :color="selectedEvent.color" dark>
-                <v-btn @click="deleteEvent(selectedEvent.id)" icon>
-                  <v-icon>mdi-delete</v-icon>
-                </v-btn>
+                <v-tooltip top>
+                  <template v-slot:activator="{ on, attrs }">
+                    <v-btn
+                      v-bind="attrs"
+                      v-on="on"
+                      @click="confirmDeleteDialog = true"
+                      icon
+                    >
+                      <v-icon>mdi-delete</v-icon>
+                    </v-btn>
+                  </template>
+                  <span>Премахване на събитие</span>
+                </v-tooltip>
                 <v-toolbar-title v-html="selectedEvent.name"></v-toolbar-title>
                 <v-spacer></v-spacer>
                 <v-btn icon>
@@ -329,6 +362,7 @@ export default {
   components: { Alert, MultidayEventMenu, DailyEventMenu },
   data() {
     return {
+      confirmDeleteDialog: false,
       loading: false,
       userEmail: null,
       userId: null,
@@ -611,6 +645,7 @@ export default {
     async deleteEvent(selectedEventId) {
       await db.collection("calEvent").doc(selectedEventId).delete();
       this.selectedOpen = false;
+      this.confirmDeleteDialog = false;
       this.getEvents();
     },
     async getEvents() {
