@@ -60,7 +60,7 @@
 </template>
 
 <script>
-import Alert from "./Alert.vue";
+import Alert from "./Alert";
 export default {
   components: { Alert },
   props: {

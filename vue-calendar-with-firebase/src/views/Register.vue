@@ -21,39 +21,82 @@
         </v-text-field>
       </v-card-text>
       <v-card-actions style="justify-content: center">
-        <v-btn @click="registerUser" color="primary">Регистрирай ме</v-btn>
+        <v-btn
+          :disabled="isRegisterBtnDisabled"
+          @click="registerUser"
+          color="primary"
+          >Регистрирай ме</v-btn
+        >
       </v-card-actions>
+      <Alert :message="errorMessage" :value="isErrors" color="pink darken-1" />
     </v-card>
   </div>
 </template>
 
 <script>
 import { user } from "@/main";
+import Alert from "@/components/Alert";
+import { messages } from "@/assets/messages";
 export default {
+  components: { Alert },
   data() {
     return {
-      email: null,
-      password: null,
-      repass: null,
+      errorMessage: "",
+      isErrors: false,
+      email: "",
+      password: "",
+      repass: "",
     };
+  },
+  computed: {
+    isRegisterBtnDisabled() {
+      return this.email == "" || this.password == "" || this.repass == "";
+    },
   },
   methods: {
     async registerUser() {
-      const create = await user;
-      const createdUser = create.createUserWithEmailAndPassword(
-        this.email,
-        this.password
-      );
-      const result = await createdUser;
+      this.isErrors = false;
 
-      this.name = null;
-      this.email = null;
-      this.password = null;
-      this.repass = null;
-      console.log(result);
+      if (this.password != this.repass) {
+        this.isErrors = true;
+        this.errorMessage = messages.repassError;
+        return;
+      }
+
+      try {
+        const create = await user;
+        const createdUser = create.createUserWithEmailAndPassword(
+          this.email,
+          this.password
+        );
+        await createdUser;
+
+        this.email = null;
+        this.password = null;
+        this.repass = null;
+
+        if (this.$router.currentRoute.fullPath != "/calendar") {
+          this.$router.push("/calendar");
+        }
+      } catch (error) {
+        this.errorMessage = returnOnRegisterErrorMessage(error);
+        this.isErrors = true;
+      }
     },
   },
 };
+
+function returnOnRegisterErrorMessage(error) {
+  if (error.toString().includes("The email address is already in use")) {
+    return messages.emailExist;
+  } else if (error.toString().includes("at least 6 characters")) {
+    return messages.shortPass;
+  } else if (error.toString().includes("address is badly formatted")) {
+    return messages.invalidEmail;
+  } else {
+    return messages.globalError;
+  }
+}
 </script>
 
 <style></style>

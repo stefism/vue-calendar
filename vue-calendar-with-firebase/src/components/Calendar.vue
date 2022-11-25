@@ -353,7 +353,7 @@
 
 <script>
 import { db, user } from "@/main";
-import Alert from "./Alert.vue";
+import Alert from "./Alert";
 import { messages } from "@/assets/messages";
 import MultidayEventMenu from "./MultidayEventMenu.vue";
 import DailyEventMenu from "./DailyEventMenu.vue";
